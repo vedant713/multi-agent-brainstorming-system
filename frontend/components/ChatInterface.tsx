@@ -26,7 +26,7 @@ export default function ChatInterface({ sessionId, topic }: ChatInterfaceProps) 
 
         console.log("Connecting to EventSource...");
         const encodedTopic = encodeURIComponent(topic);
-        const eventSource = new EventSource(`http://localhost:8000/brainstorm/${sessionId}/stream?topic=${encodedTopic}`);
+        const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm/${sessionId}/stream?topic=${encodedTopic}`);
 
         eventSource.addEventListener("agent_start", (event) => {
             try {

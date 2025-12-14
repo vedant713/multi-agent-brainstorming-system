@@ -14,7 +14,7 @@ export default function Home() {
     if (!topic) return;
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/brainstorm", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic }),
@@ -121,8 +121,8 @@ export default function Home() {
                 <button
                   onClick={() => setActiveTab('discussion')}
                   className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${activeTab === 'discussion'
-                      ? 'bg-white text-black shadow-lg'
-                      : 'text-gray-400 hover:text-white'
+                    ? 'bg-white text-black shadow-lg'
+                    : 'text-gray-400 hover:text-white'
                     }`}
                 >
                   Discussion
@@ -130,8 +130,8 @@ export default function Home() {
                 <button
                   onClick={() => setActiveTab('analysis')}
                   className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${activeTab === 'analysis'
-                      ? 'bg-white text-black shadow-lg'
-                      : 'text-gray-400 hover:text-white'
+                    ? 'bg-white text-black shadow-lg'
+                    : 'text-gray-400 hover:text-white'
                     }`}
                 >
                   Analysis
