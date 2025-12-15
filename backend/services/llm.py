@@ -20,6 +20,9 @@ class LLMService:
 
     async def _generate_ollama(self, prompt: str, system_prompt: str = None) -> str:
         """Fallback to local Ollama model."""
+        if os.getenv("RENDER"):
+            return "Error: LLM API Key is missing and local fallback is disabled on Render. Please set LLM_API_KEY."
+            
         try:
             print(f"Fallback: Using local model {self.LOCAL_MODEL}")
             messages = []
@@ -35,6 +38,10 @@ class LLMService:
 
     async def _stream_ollama(self, prompt: str, system_prompt: str = None) -> AsyncGenerator[str, None]:
         """Fallback to local Ollama stream."""
+        if os.getenv("RENDER"):
+            yield "Error: LLM API Key is missing and local fallback is disabled on Render. Please set LLM_API_KEY."
+            return
+
         try:
             print(f"Fallback Stream: Using local model {self.LOCAL_MODEL}")
             messages = []

@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from sentence_transformers import SentenceTransformer
+import google.generativeai as genai
 from sklearn.cluster import AgglomerativeClustering
 import numpy as np
 import json
@@ -10,8 +10,7 @@ class ClusteringService:
     def __init__(self, db_service: DatabaseService, llm_service: LLMService):
         self.db_service = db_service
         self.llm_service = llm_service
-        # Load model (this might take time on first run)
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        # Model loading removed (using API)
 
     async def cluster_responses(self, session_id: str) -> List[Dict[str, Any]]:
         """
@@ -33,8 +32,26 @@ class ClusteringService:
         ids = [r['id'] for r in responses]
 
         # 2. Generate embeddings
-        # Create embeddings (synchronous but fast enough for small batches)
-        embeddings = self.model.encode(texts)
+        # Use Gemini API for embeddings
+        try:
+            result = genai.embed_content(
+                model="models/embedding-001",
+                content=texts,
+                task_type="clustering",
+            )
+            embeddings = [e['embedding'] for e in result['embedding']] if 'embedding' in result else []
+            # Check if result structure is correct, sometimes it returns a list directly if not batched? 
+            # Actually for list input, it returns dict with 'embedding' as a list of embeddings.
+            
+            if not embeddings:
+                 print("No embeddings returned")
+                 return []
+                 
+            embeddings = np.array(embeddings)
+            
+        except Exception as e:
+            print(f"Error generating embeddings with Gemini: {e}")
+            return []
 
         # 3. Cluster
         # Simple clustering based on similarity
