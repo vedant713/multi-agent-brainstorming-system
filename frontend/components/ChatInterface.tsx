@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChatInterfaceProps {
     sessionId: string;
@@ -164,7 +166,9 @@ export default function ChatInterface({ sessionId, topic }: ChatInterfaceProps) 
                                     </div>
                                     <div className={`font-black text-sm tracking-widest uppercase ${styles.name}`}>{msg.agent}</div>
                                 </div>
-                                <div className="whitespace-pre-wrap text-[1.1rem] leading-relaxed pl-[4rem] opacity-90 font-light tracking-wide text-gray-100">{msg.content}</div>
+                                <div className="text-[1.1rem] leading-relaxed pl-[4rem] opacity-90 font-light tracking-wide text-gray-100 prose prose-invert max-w-none">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                                </div>
                             </div>
                         </div>
                     );
@@ -179,8 +183,8 @@ export default function ChatInterface({ sessionId, topic }: ChatInterfaceProps) 
                                 </div>
                                 <div className={`font-black text-sm tracking-widest uppercase ${getAgentStyles(currentAgent).name}`}>{currentAgent}</div>
                             </div>
-                            <div className="whitespace-pre-wrap text-[1.1rem] leading-relaxed pl-[4rem] opacity-90 font-light tracking-wide text-gray-100">
-                                {currentContent}
+                            <div className="text-[1.1rem] leading-relaxed pl-[4rem] opacity-90 font-light tracking-wide text-gray-100 prose prose-invert max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{currentContent}</ReactMarkdown>
                                 <span className="inline-block w-2 h-5 ml-1 bg-white opacity-70 animate-blink align-middle shadow-[0_0_10px_rgba(255,255,255,0.5)]"></span>
                             </div>
                         </div>

@@ -77,7 +77,8 @@ class Orchestrator:
             else:
                 instruction = "Deepen the debate. Challenge the technical feasibility of proposed solutions. Discuss edge cases, scalability, and long-term implications. Do not be superficial."
 
-            effective_context = f"{context}\n\n[SYSTEM DIRECTIVE]: {instruction}"
+            conciseness_instruction = " Keep your response concise, on-point, and balanced. Use simple, plain English that is easy to read. Avoid jargon, complex sentence structures, and heavy academic language. Ensure the core idea is clearly explained without overcomplicating it."
+            effective_context = f"{context}\n\n[SYSTEM DIRECTIVE]: {instruction}{conciseness_instruction}"
             
             # Yield Start Event
             yield f"event: agent_start\ndata: {json.dumps({'name': agent.name})}\n\n"
