@@ -1,6 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from __future__ import annotations
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from dotenv import load_dotenv
 import os
+from io import BytesIO
+import pypdf
+import google.generativeai as genai
+import tempfile
+import pathlib
 
 load_dotenv()
 
@@ -30,18 +36,62 @@ llm_service = LLMService()
 orchestrator = Orchestrator(llm_service, db_service)
 clustering_service = ClusteringService(db_service, llm_service)
 
-class BrainstormRequest(BaseModel):
-    topic: str
+
 
 @app.post("/brainstorm")
-async def start_brainstorm(request: BrainstormRequest):
+async def start_brainstorm(
+    topic: str = Form(...),
+    file: UploadFile | None = File(None)
+):
     session_id = str(uuid.uuid4())
+    
+    context_text = ""
+    if file:
+        try:
+            # Save uploaded file to temp file
+            suffix = pathlib.Path(file.filename).suffix
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                content = await file.read()
+                tmp.write(content)
+                tmp_path = tmp.name
+
+            try:
+                # Upload to Gemini
+                print(f"DEBUG: Uploading {file.filename} to Gemini...")
+                uploaded_file = genai.upload_file(tmp_path, mime_type=file.content_type)
+                
+                # Generate content (OCR/Description)
+                # Using 2.0 Flash Exp as requested (user said 2.5, likely meant 2.0-exp)
+                model = genai.GenerativeModel('gemini-2.5-flash')
+                
+                prompt = "Extract all text from this document. If it is an image or scanned PDF, perform OCR. Also describe any diagrams or visual elements found."
+                print("DEBUG: Generating content description...")
+                response = await model.generate_content_async([prompt, uploaded_file])
+                
+                context_text = f"\n\n[Attached File Analysis]:\n{response.text}"
+                print(f"DEBUG: Successfully processed file. extracted {len(context_text)} chars.")
+                
+            except Exception as e:
+                print(f"Error processing file with Gemini: {e}")
+                context_text = f"\n\n[Attached File Error]: Could not process file. Error: {str(e)}"
+            finally:
+                # Cleanup temp file
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+                    
+        except Exception as e:
+            print(f"Error handling file upload: {e}")
+
+    full_topic = f"{topic}{context_text}"
+    print(f"DEBUG: Session {session_id} - Full Topic Length: {len(full_topic)}")
+
     # Create session in DB
     if db_service.get_client():
         db_service.get_client().table("sessions").insert({
             "id": session_id,
-            "topic": request.topic
+            "topic": full_topic # Store the combined topic + file context
         }).execute()
+        print(f"DEBUG: Session {session_id} - Saved to DB")
     return {"session_id": session_id}
 
 @app.get("/brainstorm/{session_id}/stream")
@@ -54,11 +104,13 @@ async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic"):
             res = db_service.get_client().table("sessions").select("topic").eq("id", session_id).execute()
             if res.data:
                 db_topic = res.data[0]['topic']
+                print(f"DEBUG: Stream {session_id} - Fetched DB Topic Length: {len(db_topic)}")
         except Exception as e:
             print(f"DB Error fetching topic: {e}")
     
     # Use DB topic if available, otherwise use query param
     final_topic = db_topic if db_topic else topic
+    print(f"DEBUG: Stream {session_id} - Using Topic Length: {len(final_topic)}")
     
     return StreamingResponse(
         orchestrator.run_brainstorming_session(final_topic, session_id),

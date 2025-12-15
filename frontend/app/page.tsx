@@ -8,16 +8,22 @@ export default function Home() {
   const [topic, setTopic] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<'discussion' | 'analysis'>('discussion');
 
   const startSession = async () => {
     if (!topic) return;
     setLoading(true);
     try {
+      const formData = new FormData();
+      formData.append("topic", topic);
+      if (file) {
+        formData.append("file", file);
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: formData, // No Content-Type header needed for FormData
       });
       const data = await res.json();
       setSessionId(data.session_id);
@@ -66,6 +72,17 @@ export default function Home() {
             <div className="w-full max-w-3xl relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
               <div className="relative bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 p-2 flex items-center gap-2 shadow-2xl">
+                <label className="p-4 cursor-pointer hover:bg-white/10 rounded-xl transition-colors">
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    accept="image/*,application/pdf"
+                  />
+                  <svg className={`w-6 h-6 ${file ? 'text-green-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                  </svg>
+                </label>
                 <input
                   type="text"
                   value={topic}
