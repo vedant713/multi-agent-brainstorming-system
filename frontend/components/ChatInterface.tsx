@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 interface ChatInterfaceProps {
     sessionId: string;
     topic: string;
+    agentIds?: string[];
 }
 
 interface Message {
@@ -14,7 +15,7 @@ interface Message {
     content: string;
 }
 
-export default function ChatInterface({ sessionId, topic }: ChatInterfaceProps) {
+export default function ChatInterface({ sessionId, topic, agentIds }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [currentAgent, setCurrentAgent] = useState<string | null>(null);
     const [currentContent, setCurrentContent] = useState("");
@@ -27,8 +28,10 @@ export default function ChatInterface({ sessionId, topic }: ChatInterfaceProps) 
         if (!sessionId || isPaused) return;
 
         console.log("Connecting to EventSource...");
+        console.log("Connecting to EventSource...");
         const encodedTopic = encodeURIComponent(topic);
-        const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm/${sessionId}/stream?topic=${encodedTopic}`);
+        const agentIdsParam = agentIds && agentIds.length > 0 ? `&agent_ids=${agentIds.join(',')}` : '';
+        const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm/${sessionId}/stream?topic=${encodedTopic}${agentIdsParam}`);
 
         eventSource.addEventListener("agent_start", (event) => {
             try {

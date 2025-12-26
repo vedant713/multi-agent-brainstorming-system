@@ -42,3 +42,13 @@ create table cluster_assignments (
   cluster_id uuid references clusters(id) on delete cascade not null,
   primary key (response_id, cluster_id)
 );
+
+-- Create custom_agents table
+-- Stores user-created agents
+create table custom_agents (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  role text not null,
+  prompt text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);

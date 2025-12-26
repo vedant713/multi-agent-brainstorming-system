@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Body
 from dotenv import load_dotenv
 import os
 from io import BytesIO
@@ -8,7 +8,13 @@ import google.generativeai as genai
 import tempfile
 import pathlib
 
-load_dotenv()
+# Point to .env in parent directory
+env_path = pathlib.Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
+
+print(f"DEBUG: Loaded .env from {env_path}")
+print(f"DEBUG: SUPABASE_URL present: {bool(os.getenv('SUPABASE_URL'))}")
+print(f"DEBUG: SUPABASE_KEY present: {bool(os.getenv('SUPABASE_KEY'))}")
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -41,7 +47,8 @@ clustering_service = ClusteringService(db_service, llm_service)
 @app.post("/brainstorm")
 async def start_brainstorm(
     topic: str = Form(...),
-    file: UploadFile | None = File(None)
+    file: UploadFile | None = File(None),
+    agent_ids: str | None = Form(None) # Comma separated IDs
 ):
     session_id = str(uuid.uuid4())
     
@@ -94,8 +101,37 @@ async def start_brainstorm(
         print(f"DEBUG: Session {session_id} - Saved to DB")
     return {"session_id": session_id}
 
+class CreateAgentRequest(BaseModel):
+    name: str
+    role: str
+    prompt: str
+
+@app.post("/agents")
+async def create_agent(agent: CreateAgentRequest):
+    if db_service.get_client():
+        try:
+            res = db_service.get_client().table("custom_agents").insert({
+                "name": agent.name,
+                "role": agent.role,
+                "prompt": agent.prompt
+            }).execute()
+            return {"message": "Agent created", "data": res.data}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(status_code=503, detail="Database not available")
+
+@app.get("/agents")
+async def get_agents():
+    if db_service.get_client():
+        try:
+            res = db_service.get_client().table("custom_agents").select("*").execute()
+            return {"agents": res.data}
+        except Exception as e:
+             raise HTTPException(status_code=500, detail=str(e))
+    return {"agents": []}
+
 @app.get("/brainstorm/{session_id}/stream")
-async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic"):
+async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic", agent_ids: str = None):
     # Retrieve topic from DB if not provided or if we want to double check
     # But prioritizing query param for robustness if DB is down
     db_topic = None
@@ -113,7 +149,7 @@ async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic"):
     print(f"DEBUG: Stream {session_id} - Using Topic Length: {len(final_topic)}")
     
     return StreamingResponse(
-        orchestrator.run_brainstorming_session(final_topic, session_id),
+        orchestrator.run_brainstorming_session(final_topic, session_id, agent_ids.split(",") if agent_ids else None),
         media_type="text/event-stream"
     )
     

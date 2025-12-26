@@ -5,6 +5,7 @@ from agents.optimist import OptimistAgent
 from agents.skeptic import SkepticAgent
 from agents.analyst import AnalystAgent
 from agents.evaluator import EvaluatorAgent
+from agents.custom_agent import CustomAgent
 from services.llm import LLMService
 from services.database import DatabaseService
 
@@ -19,7 +20,26 @@ class Orchestrator:
             EvaluatorAgent("Evaluator", "Evaluator", llm_service)
         ]
 
-    async def run_brainstorming_session(self, topic: str, session_id: str) -> AsyncGenerator[str, None]:
+    async def initialize_custom_agents(self, agent_ids: List[str] = None):
+        """
+        Loads custom agents from DB.
+        If agent_ids is None, loads default agents potentially mixed with others?
+        Actually, let's keep default + whatever is requested.
+        """
+        if not self.db_service.get_client() or not agent_ids:
+            return
+
+        try:
+            res = self.db_service.get_client().table("custom_agents").select("*").in_("id", agent_ids).execute()
+            if res.data:
+                for record in res.data:
+                    self.agents.append(
+                        CustomAgent(record['name'], record['role'], record['prompt'], self.llm_service)
+                    )
+        except Exception as e:
+            print(f"Error loading custom agents: {e}")
+
+    async def run_brainstorming_session(self, topic: str, session_id: str, agent_ids: List[str] = None) -> AsyncGenerator[str, None]:
         """
         Runs a brainstorming session.
         Yields SSE events.
@@ -36,6 +56,9 @@ class Orchestrator:
                     history = res.data
             except Exception as e:
                 print(f"Error fetching history: {e}")
+
+        if agent_ids:
+             await self.initialize_custom_agents(agent_ids)
 
         # 2. Reconstruct Context & Replay History
         context = f"Topic: {topic}"
