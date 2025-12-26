@@ -106,6 +106,19 @@ class CreateAgentRequest(BaseModel):
     role: str
     prompt: str
 
+AGENT_PRESETS = [
+    {"name": "Devil's Advocate", "role": "Critic", "prompt": "You are a Devil's Advocate. Your job is to challenge every assumption, find holes in arguments, and propose counter-arguments. Be relentless but constructive."},
+    {"name": "Project Manager", "role": "Planner", "prompt": "You are a Project Manager. Focus on feasibility, timelines, resources, and risks. Break down ideas into actionable steps."},
+    {"name": "User Advocate", "role": "Empath", "prompt": "You represent the end user. Focus on usability, accessibility, and user experience. Ensure the idea solves a real problem for real people."},
+    {"name": "Visionary", "role": "Dreamer", "prompt": "You are a Visionary. Ignore constraints. Think big, long-term, and futuristic. Ask 'what if?' and push boundaries."},
+    {"name": "Security Expert", "role": "Guardian", "prompt": "You are a Security Expert. Analyze ideas for vulnerabilities, privacy issues, and potential exploits. Prioritize safety and trust."},
+    {"name": "Growth Hacker", "role": "Marketer", "prompt": "You are a Growth Hacker. Focus on virality, user acquisition, and retention variables. How can this idea scale rapidly?"},
+    {"name": "Economist", "role": "Strategist", "prompt": "You are an Economist. Analyze market incentives, supply and demand, and financial sustainability. Is the business model viable?"},
+    {"name": "Psychologist", "role": "Analyst", "prompt": "You are a Psychologist. Analyze the behavioral aspects. Why would humans want this? What psychological triggers does it leverage?"},
+    {"name": "Legal Counsel", "role": "Lawyer", "prompt": "You are Legal Counsel. Identify potential regulatory hurdles, IP issues, and compliance risks. Keep us out of jail."},
+    {"name": "Sustainability Officer", "role": "Activist", "prompt": "You are a Sustainability Officer. Evaluate the environmental and social impact. ensure the idea is ethical and sustainable."}
+]
+
 @app.post("/agents")
 async def create_agent(agent: CreateAgentRequest):
     if db_service.get_client():
@@ -128,7 +141,22 @@ async def get_agents():
             return {"agents": res.data}
         except Exception as e:
              raise HTTPException(status_code=500, detail=str(e))
+    # Fallback to local defaults if DB is down (though we raise 503 now)
     return {"agents": []}
+
+@app.delete("/agents/{agent_id}")
+async def delete_agent(agent_id: str):
+    if db_service.get_client():
+        try:
+            res = db_service.get_client().table("custom_agents").delete().eq("id", agent_id).execute()
+            return {"message": "Agent deleted", "data": res.data}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(status_code=503, detail="Database not available")
+
+@app.get("/agents/presets")
+async def get_agent_presets():
+    return {"presets": AGENT_PRESETS}
 
 @app.get("/brainstorm/{session_id}/stream")
 async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic", agent_ids: str = None):

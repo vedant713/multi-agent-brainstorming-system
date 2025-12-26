@@ -1,5 +1,6 @@
 from typing import List, AsyncGenerator
 import json
+import asyncio
 from agents.base import Agent
 from agents.optimist import OptimistAgent
 from agents.skeptic import SkepticAgent
@@ -13,38 +14,57 @@ class Orchestrator:
     def __init__(self, llm_service: LLMService, db_service: DatabaseService):
         self.llm_service = llm_service
         self.db_service = db_service
-        self.agents: List[Agent] = [
-            OptimistAgent("Optimist", "Optimist", llm_service),
-            SkepticAgent("Skeptic", "Skeptic", llm_service),
-            AnalystAgent("Analyst", "Analyst", llm_service),
-            EvaluatorAgent("Evaluator", "Evaluator", llm_service)
-        ]
+        # No defaults init here strictly; we do it per session or init with defaults
+        self.defaults = {
+            "optimist": OptimistAgent("Optimist", "Optimist", llm_service),
+            "skeptic": SkepticAgent("Skeptic", "Skeptic", llm_service),
+            "analyst": AnalystAgent("Analyst", "Analyst", llm_service),
+            "evaluator": EvaluatorAgent("Evaluator", "Evaluator", llm_service)
+        }
+        self.agents: List[Agent] = list(self.defaults.values())
 
-    async def initialize_custom_agents(self, agent_ids: List[str] = None):
+    async def initialize_session_agents(self, agent_ids: List[str] = None):
         """
-        Loads custom agents from DB.
-        If agent_ids is None, loads default agents potentially mixed with others?
-        Actually, let's keep default + whatever is requested.
+        Re-initializes self.agents based on request.
         """
-        if not self.db_service.get_client() or not agent_ids:
+        if agent_ids is None:
+            # Revert to all defaults if nothing specified (legacy safety)
+            self.agents = list(self.defaults.values())
             return
 
-        try:
-            res = self.db_service.get_client().table("custom_agents").select("*").in_("id", agent_ids).execute()
-            if res.data:
-                for record in res.data:
-                    self.agents.append(
-                        CustomAgent(record['name'], record['role'], record['prompt'], self.llm_service)
-                    )
-        except Exception as e:
-            print(f"Error loading custom agents: {e}")
+        new_agents = []
+        custom_ids = []
+
+        for aid in agent_ids:
+            if aid in self.defaults:
+                new_agents.append(self.defaults[aid])
+            else:
+                custom_ids.append(aid)
+        
+        self.agents = new_agents # Start with requested defaults
+        
+        # Load requested custom agents
+        if custom_ids and self.db_service.get_client():
+            try:
+                res = self.db_service.get_client().table("custom_agents").select("*").in_("id", custom_ids).execute()
+                if res.data:
+                    # Sort them to match input order if possible, or just append
+                    # Map id -> record
+                    record_map = {r['id']: r for r in res.data}
+                    for cid in custom_ids:
+                         if cid in record_map:
+                             r = record_map[cid]
+                             self.agents.append(
+                                 CustomAgent(r['name'], r['role'], r['prompt'], self.llm_service)
+                             )
+            except Exception as e:
+                print(f"Error loading custom agents: {e}")
 
     async def run_brainstorming_session(self, topic: str, session_id: str, agent_ids: List[str] = None) -> AsyncGenerator[str, None]:
         """
         Runs a brainstorming session.
         Yields SSE events.
         """
-        import asyncio
         
         # 1. Fetch existing history to restore state
         history = []
@@ -57,14 +77,20 @@ class Orchestrator:
             except Exception as e:
                 print(f"Error fetching history: {e}")
 
+        # Initialize agents for this run
         if agent_ids:
-             await self.initialize_custom_agents(agent_ids)
+             await self.initialize_session_agents(agent_ids)
+        elif not agent_ids and not history:
+             # Legacy/Default fallback if starting fresh with no args
+             pass 
+        
+        if not self.agents:
+             print("Warning: No agents available for session.")
+             yield f"event: token\ndata: {json.dumps({'text': 'System Error: No agents selected for this session.'})}\n\n"
+             return
 
         # 2. Reconstruct Context & Replay History
         context = f"Topic: {topic}"
-        
-        # We also need to map stored agent_name back to our agent instances if we wanted to be strict,
-        # but for replay we just show the text.
         
         for record in history:
             a_name = record['agent_name']
@@ -83,6 +109,10 @@ class Orchestrator:
         
         while True:
             # Determine which agent is next
+            # Use modulo on currently active agents
+            if not self.agents:
+                break
+
             agent_index = total_responses % len(self.agents)
             agent = self.agents[agent_index]
             
@@ -114,7 +144,7 @@ class Orchestrator:
                     yield f"event: token\ndata: {json.dumps({'text': chunk})}\n\n"
             except Exception as e:
                 print(f"Error generating response: {e}")
-                error_msg = "[Error generating response]"
+                error_msg = f"[Error: {str(e)}]"
                 response_content = error_msg
                 yield f"event: token\ndata: {json.dumps({'text': error_msg})}\n\n"
 

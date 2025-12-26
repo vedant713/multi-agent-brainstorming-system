@@ -26,7 +26,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'discussion' | 'analysis'>('discussion');
   const [showAgentBuilder, setShowAgentBuilder] = useState(false);
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(DEFAULT_AGENTS.map(a => a.id));
 
   useEffect(() => {
     fetchAgents();
@@ -41,6 +41,23 @@ export default function Home() {
       }
     } catch (e) {
       console.error("Failed to fetch agents", e);
+    }
+  };
+
+  const deleteAgent = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this agent?")) return;
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/agents/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setAvailableAgents(prev => prev.filter(a => a.id !== id));
+        setSelectedAgentIds(prev => prev.filter(pid => pid !== id));
+      }
+    } catch (error) {
+      console.error("Failed to delete agent", error);
     }
   };
 
@@ -162,7 +179,7 @@ export default function Home() {
               <div className="flex justify-between items-end mb-6">
                 <div>
                   <h3 className="text-xl font-bold text-white mb-2">Assemble Your Squad</h3>
-                  <p className="text-gray-400 text-sm">Default agents are always included. Select extra custom agents.</p>
+                  <p className="text-gray-400 text-sm">Default agents are included by default but can be removed. Click to toggle.</p>
                 </div>
                 <button
                   onClick={() => setShowAgentBuilder(true)}
@@ -174,14 +191,23 @@ export default function Home() {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Default Agents Display (Read Only) */}
+                {/* Default Agents Display (Now Selectable) */}
                 {DEFAULT_AGENTS.map(agent => (
-                  <div key={agent.id} className="p-4 rounded-xl border border-white/10 bg-white/5 opacity-75 cursor-not-allowed relative overflow-hidden">
-                    <div className="absolute top-2 right-2 text-green-400">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
-                    </div>
-                    <h4 className="font-bold text-white">{agent.name}</h4>
-                    <span className="text-xs text-gray-400 uppercase tracking-wider">Core Team</span>
+                  <div
+                    key={agent.id}
+                    onClick={() => toggleAgent(agent.id)}
+                    className={`p-4 rounded-xl border cursor-pointer transition-all relative overflow-hidden group ${selectedAgentIds.includes(agent.id)
+                        ? 'bg-blue-600/20 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.2)]'
+                        : 'bg-white/5 border-white/10 hover:border-white/30 opacity-60'
+                      }`}
+                  >
+                    {selectedAgentIds.includes(agent.id) && (
+                      <div className="absolute top-2 right-2 text-blue-400">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
+                      </div>
+                    )}
+                    <h4 className="font-bold text-white mb-1">{agent.name}</h4>
+                    <span className="text-xs text-blue-400 uppercase tracking-wider font-bold">Core Team</span>
                   </div>
                 ))}
 
@@ -192,7 +218,7 @@ export default function Home() {
                     onClick={() => toggleAgent(agent.id)}
                     className={`p-4 rounded-xl border cursor-pointer transition-all relative overflow-hidden group ${selectedAgentIds.includes(agent.id)
                       ? 'bg-purple-600/20 border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.2)]'
-                      : 'bg-white/5 border-white/10 hover:border-white/30'
+                      : 'bg-white/5 border-white/10 hover:border-white/30 opacity-80'
                       }`}
                   >
                     {selectedAgentIds.includes(agent.id) && (
@@ -200,7 +226,16 @@ export default function Home() {
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
                       </div>
                     )}
-                    <h4 className="font-bold text-white group-hover:text-purple-300 transition-colors">{agent.name}</h4>
+
+                    <button
+                      onClick={(e) => deleteAgent(agent.id, e)}
+                      className="absolute top-2 right-8 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all p-1"
+                      title="Delete Agent"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+
+                    <h4 className="font-bold text-white group-hover:text-purple-300 transition-colors mb-1">{agent.name}</h4>
                     <span className="text-xs text-gray-400 uppercase tracking-wider">{agent.role}</span>
                   </div>
                 ))}
@@ -263,18 +298,6 @@ export default function Home() {
             {/* Tab Content */}
             <div className="flex-1 min-h-0 relative">
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'discussion' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 -translate-x-10 z-0 pointer-events-none'}`}>
-                {/* Note: I need to pass query params to SSE here inside ChatInterface probably.
-                    But ChatInterface uses EventSource. I need to update ChatInterface to accept agent_ids if I want them carried over?
-                    Actually the backend relies on agent_ids passed to stream_brainstorm if not in DB.
-                    Wait, ChatInterface connects to `/brainstorm/${sessionId}/stream`.
-                    The sessionId is generated by startSession.
-                    Does startSession persist agent_ids? 
-                    I updated startSession to call POST /brainstorm but that logic doesn't persist agent_ids in DB yet.
-                    It just generates session_id.
-                    
-                    I previously updated Main.py stream_brainstorm to accept agent_ids via query param.
-                    So I MUST pass agent_ids to ChatInterface so it can append to the URL.
-                */}
                 <ChatInterface sessionId={sessionId} topic={topic} agentIds={selectedAgentIds} />
               </div>
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'analysis' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
