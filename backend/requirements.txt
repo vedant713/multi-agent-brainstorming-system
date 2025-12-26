@@ -8,3 +8,5 @@ pydantic
 openai
 google-generativeai
 ollama
+pypdf
+python-multipart

@@ -1,23 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChatInterface from "@/components/ChatInterface";
 import ClusterView from "@/components/ClusterView";
+import AgentBuilder from "@/components/AgentBuilder";
+
+interface Agent {
+  id: string;
+  name: string;
+  role: string;
+}
+
+const DEFAULT_AGENTS = [
+  { id: 'optimist', name: 'Optimist', role: 'Optimist' },
+  { id: 'skeptic', name: 'Skeptic', role: 'Skeptic' },
+  { id: 'analyst', name: 'Analyst', role: 'Analyst' },
+  { id: 'evaluator', name: 'Evaluator', role: 'Evaluator' },
+];
 
 export default function Home() {
   const [topic, setTopic] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState<'discussion' | 'analysis'>('discussion');
+  const [showAgentBuilder, setShowAgentBuilder] = useState(false);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchAgents();
+  }, []);
+
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/agents`);
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableAgents(data.agents || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch agents", e);
+    }
+  };
+
+  const handleAgentCreated = () => {
+    fetchAgents();
+  };
+
+  const toggleAgent = (id: string) => {
+    setSelectedAgentIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   const startSession = async () => {
     if (!topic) return;
     setLoading(true);
     try {
+      const formData = new FormData();
+      formData.append("topic", topic);
+      if (file) {
+        formData.append("file", file);
+      }
+      if (selectedAgentIds.length > 0) {
+        formData.append("agent_ids", selectedAgentIds.join(","));
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: formData, // No Content-Type header needed for FormData
       });
       const data = await res.json();
       setSessionId(data.session_id);
@@ -66,6 +118,17 @@ export default function Home() {
             <div className="w-full max-w-3xl relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
               <div className="relative bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 p-2 flex items-center gap-2 shadow-2xl">
+                <label className="p-4 cursor-pointer hover:bg-white/10 rounded-xl transition-colors">
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    accept="image/*,application/pdf"
+                  />
+                  <svg className={`w-6 h-6 ${file ? 'text-green-400' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                  </svg>
+                </label>
                 <input
                   type="text"
                   value={topic}
@@ -91,6 +154,56 @@ export default function Home() {
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+
+            {/* Agent Selection Section */}
+            <div className="mt-12 w-full max-w-4xl">
+              <div className="flex justify-between items-end mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-2">Assemble Your Squad</h3>
+                  <p className="text-gray-400 text-sm">Default agents are always included. Select extra custom agents.</p>
+                </div>
+                <button
+                  onClick={() => setShowAgentBuilder(true)}
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-bold transition-all flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                  Create Agent
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Default Agents Display (Read Only) */}
+                {DEFAULT_AGENTS.map(agent => (
+                  <div key={agent.id} className="p-4 rounded-xl border border-white/10 bg-white/5 opacity-75 cursor-not-allowed relative overflow-hidden">
+                    <div className="absolute top-2 right-2 text-green-400">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
+                    </div>
+                    <h4 className="font-bold text-white">{agent.name}</h4>
+                    <span className="text-xs text-gray-400 uppercase tracking-wider">Core Team</span>
+                  </div>
+                ))}
+
+                {/* Custom Agents */}
+                {availableAgents.map(agent => (
+                  <div
+                    key={agent.id}
+                    onClick={() => toggleAgent(agent.id)}
+                    className={`p-4 rounded-xl border cursor-pointer transition-all relative overflow-hidden group ${selectedAgentIds.includes(agent.id)
+                      ? 'bg-purple-600/20 border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.2)]'
+                      : 'bg-white/5 border-white/10 hover:border-white/30'
+                      }`}
+                  >
+                    {selectedAgentIds.includes(agent.id) && (
+                      <div className="absolute top-2 right-2 text-purple-400">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path></svg>
+                      </div>
+                    )}
+                    <h4 className="font-bold text-white group-hover:text-purple-300 transition-colors">{agent.name}</h4>
+                    <span className="text-xs text-gray-400 uppercase tracking-wider">{agent.role}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -150,7 +263,19 @@ export default function Home() {
             {/* Tab Content */}
             <div className="flex-1 min-h-0 relative">
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'discussion' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 -translate-x-10 z-0 pointer-events-none'}`}>
-                <ChatInterface sessionId={sessionId} topic={topic} />
+                {/* Note: I need to pass query params to SSE here inside ChatInterface probably.
+                    But ChatInterface uses EventSource. I need to update ChatInterface to accept agent_ids if I want them carried over?
+                    Actually the backend relies on agent_ids passed to stream_brainstorm if not in DB.
+                    Wait, ChatInterface connects to `/brainstorm/${sessionId}/stream`.
+                    The sessionId is generated by startSession.
+                    Does startSession persist agent_ids? 
+                    I updated startSession to call POST /brainstorm but that logic doesn't persist agent_ids in DB yet.
+                    It just generates session_id.
+                    
+                    I previously updated Main.py stream_brainstorm to accept agent_ids via query param.
+                    So I MUST pass agent_ids to ChatInterface so it can append to the URL.
+                */}
+                <ChatInterface sessionId={sessionId} topic={topic} agentIds={selectedAgentIds} />
               </div>
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'analysis' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
                 <ClusterView sessionId={sessionId} />
@@ -159,6 +284,10 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {showAgentBuilder && (
+        <AgentBuilder onClose={() => setShowAgentBuilder(false)} onCreated={handleAgentCreated} />
+      )}
     </main>
   );
 }
