@@ -197,8 +197,8 @@ export default function Home() {
                     key={agent.id}
                     onClick={() => toggleAgent(agent.id)}
                     className={`p-4 rounded-xl border cursor-pointer transition-all relative overflow-hidden group ${selectedAgentIds.includes(agent.id)
-                        ? 'bg-blue-600/20 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.2)]'
-                        : 'bg-white/5 border-white/10 hover:border-white/30 opacity-60'
+                      ? 'bg-blue-600/20 border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.2)]'
+                      : 'bg-white/5 border-white/10 hover:border-white/30 opacity-60'
                       }`}
                   >
                     {selectedAgentIds.includes(agent.id) && (
@@ -301,7 +301,7 @@ export default function Home() {
                 <ChatInterface sessionId={sessionId} topic={topic} agentIds={selectedAgentIds} />
               </div>
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'analysis' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
-                <ClusterView sessionId={sessionId} />
+                <ClusterView sessionId={sessionId} topic={topic} />
               </div>
             </div>
           </div>
