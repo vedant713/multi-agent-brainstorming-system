@@ -8,6 +8,7 @@ interface ChatInterfaceProps {
     sessionId: string;
     topic: string;
     agentIds?: string[];
+    assuranceMode?: 'insight' | 'evidence';
 }
 
 interface Message {
@@ -15,7 +16,7 @@ interface Message {
     content: string;
 }
 
-export default function ChatInterface({ sessionId, topic, agentIds }: ChatInterfaceProps) {
+export default function ChatInterface({ sessionId, topic, agentIds, assuranceMode = 'insight' }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [currentAgent, setCurrentAgent] = useState<string | null>(null);
     const [currentContent, setCurrentContent] = useState("");
@@ -31,7 +32,8 @@ export default function ChatInterface({ sessionId, topic, agentIds }: ChatInterf
         console.log("Connecting to EventSource...");
         const encodedTopic = encodeURIComponent(topic);
         const agentIdsParam = agentIds && agentIds.length > 0 ? `&agent_ids=${agentIds.join(',')}` : '';
-        const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm/${sessionId}/stream?topic=${encodedTopic}${agentIdsParam}`);
+        const assuranceParam = `&assurance_mode=${assuranceMode}`;
+        const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm/${sessionId}/stream?topic=${encodedTopic}${agentIdsParam}${assuranceParam}`);
 
         eventSource.addEventListener("agent_start", (event) => {
             try {
@@ -113,9 +115,14 @@ export default function ChatInterface({ sessionId, topic, agentIds }: ChatInterf
                 avatar: 'bg-gradient-to-br from-purple-400 to-fuchsia-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]',
                 name: 'text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-400'
             };
+            case 'Moderator': return {
+                container: 'bg-white/10 border-white/20 text-white shadow-[0_0_30px_rgba(255,255,255,0.05)]',
+                avatar: 'bg-gradient-to-br from-gray-200 to-gray-400 text-black shadow-[0_0_20px_rgba(255,255,255,0.4)]',
+                name: 'text-white'
+            };
             default: return {
                 container: 'bg-white/5 border-white/10 text-gray-100',
-                avatar: 'bg-gray-600 text-white',
+                avatar: 'bg-gradient-to-br from-indigo-500 to-blue-500 text-white',
                 name: 'text-gray-400'
             };
         }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import ChatInterface from "@/components/ChatInterface";
 import ClusterView from "@/components/ClusterView";
+import QualityPanel from "@/components/QualityPanel";
 import AgentBuilder from "@/components/AgentBuilder";
 
 interface Agent {
@@ -23,10 +24,11 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState<'discussion' | 'analysis'>('discussion');
+  const [activeTab, setActiveTab] = useState<'discussion' | 'analysis' | 'report'>('discussion');
   const [showAgentBuilder, setShowAgentBuilder] = useState(false);
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(DEFAULT_AGENTS.map(a => a.id));
+  const [assuranceMode, setAssuranceMode] = useState<'insight' | 'evidence'>('insight');
 
   useEffect(() => {
     fetchAgents();
@@ -83,6 +85,7 @@ export default function Home() {
       if (selectedAgentIds.length > 0) {
         formData.append("agent_ids", selectedAgentIds.join(","));
       }
+      formData.append("assurance_mode", assuranceMode);
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm`, {
         method: "POST",
@@ -170,6 +173,22 @@ export default function Home() {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
                     </>
                   )}
+                </button>
+              </div>
+
+              {/* Evidence Mode Toggle */}
+              <div className="flex gap-4 mb-4 justify-center">
+                <button
+                  onClick={() => setAssuranceMode('insight')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border ${assuranceMode === 'insight' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-transparent border-white/10 text-gray-500 hover:text-white'}`}
+                >
+                  ⚡ Insight Mode (Fast)
+                </button>
+                <button
+                  onClick={() => setAssuranceMode('evidence')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all border ${assuranceMode === 'evidence' ? 'bg-amber-600/20 border-amber-500 text-amber-300' : 'bg-transparent border-white/10 text-gray-500 hover:text-white'}`}
+                >
+                  ⚖️ Evidence Mode (Rigorous)
                 </button>
               </div>
             </div>
@@ -284,6 +303,15 @@ export default function Home() {
                 >
                   Analysis
                 </button>
+                <button
+                  onClick={() => setActiveTab('report')}
+                  className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 ${activeTab === 'report'
+                    ? 'bg-white text-black shadow-lg'
+                    : 'text-gray-400 hover:text-white'
+                    }`}
+                >
+                  Quality
+                </button>
               </div>
 
               <button
@@ -298,10 +326,13 @@ export default function Home() {
             {/* Tab Content */}
             <div className="flex-1 min-h-0 relative">
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'discussion' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 -translate-x-10 z-0 pointer-events-none'}`}>
-                <ChatInterface sessionId={sessionId} topic={topic} agentIds={selectedAgentIds} />
+                <ChatInterface sessionId={sessionId} topic={topic} agentIds={selectedAgentIds} assuranceMode={assuranceMode} />
               </div>
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'analysis' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
                 <ClusterView sessionId={sessionId} topic={topic} />
+              </div>
+              <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'report' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
+                <QualityPanel sessionId={sessionId} />
               </div>
             </div>
           </div>

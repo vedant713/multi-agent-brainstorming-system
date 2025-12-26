@@ -119,11 +119,15 @@ class ClusteringService:
         for cluster_id, response_ids in clusters_map.items():
             content_sample = "\n---\n".join(cluster_texts[cluster_id][:5]) # Limit sample size
             
-            # Generate Name & Description
+            # Generate Name & Description & Metadata
             prompt = f"""
-            Analyze these brainstorming ideas and provide a JSON output with two fields:
-            1. "name": A short, punchy title (max 5 words) for this group of ideas.
-            2. "description": A brief summary (max 1 sentence) of the common theme.
+            Analyze these brainstorming ideas and provide a JSON output with the following fields:
+            1. "name": A short, punchy title (max 5 words).
+            2. "description": A brief summary (max 1 sentence).
+            3. "decision_relevance": "High", "Medium", or "Low".
+            4. "consensus_status": "Consensus", "Disputed", or "Mixed".
+            5. "risks": A list of potential risks [string].
+            6. "opportunities": A list of key opportunities [string].
             
             Ideas:
             {content_sample}
@@ -133,6 +137,10 @@ class ClusteringService:
             
             name = f"Group {cluster_id + 1}"
             description = "AI generated cluster"
+            decision_relevance = "Medium"
+            consensus_status = "Mixed"
+            risks = []
+            opportunities = []
             
             try:
                 ai_response = await self.llm_service.generate_response(prompt)
@@ -141,8 +149,13 @@ class ClusteringService:
                 data = json.loads(clean_response)
                 name = data.get("name", name)
                 description = data.get("description", description)
+                decision_relevance = data.get("decision_relevance", decision_relevance)
+                consensus_status = data.get("consensus_status", consensus_status)
+                risks = data.get("risks", risks)
+                opportunities = data.get("opportunities", opportunities)
+
             except Exception as e:
-                print(f"Error generating cluster name: {e}")
+                print(f"Error generating cluster metadata: {e}")
                 # Fallback names
                 name = f"Cluster {cluster_id + 1}"
                 description = f"Group of {len(response_ids)} related ideas."
@@ -151,7 +164,11 @@ class ClusteringService:
             cluster_res = self.db_service.get_client().table("clusters").insert({
                 "session_id": session_id,
                 "name": name,
-                "description": description
+                "description": description,
+                "decision_relevance": decision_relevance,
+                "consensus_status": consensus_status,
+                "risks": risks,
+                "opportunities": opportunities
             }).execute()
             
             cluster_db_id = cluster_res.data[0]['id']
@@ -164,6 +181,10 @@ class ClusteringService:
                 "id": cluster_db_id,
                 "name": name,
                 "description": description,
+                "decision_relevance": decision_relevance,
+                "consensus_status": consensus_status,
+                "risks": risks,
+                "opportunities": opportunities,
                 "response_ids": response_ids
             })
             

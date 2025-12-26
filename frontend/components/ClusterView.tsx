@@ -13,6 +13,10 @@ interface Cluster {
     name: string;
     description: string;
     response_ids: string[];
+    decision_relevance?: 'High' | 'Medium' | 'Low';
+    consensus_status?: 'Consensus' | 'Disputed' | 'Mixed';
+    risks?: string[];
+    opportunities?: string[];
 }
 
 export default function ClusterView({ sessionId, topic }: ClusterViewProps) {
@@ -111,9 +115,43 @@ export default function ClusterView({ sessionId, topic }: ClusterViewProps) {
                                     <h3 className="font-bold text-xl text-gray-200 group-hover:text-white transition-colors leading-tight mb-2">
                                         {cluster.name}
                                     </h3>
-                                    <p className="text-xs text-gray-400 font-light leading-relaxed">
+                                    <p className="text-xs text-gray-400 font-light leading-relaxed mb-4">
                                         {cluster.description}
                                     </p>
+
+                                    {/* Metrics Badges */}
+                                    <div className="flex flex-wrap gap-2 mb-4 w-full">
+                                        {cluster.decision_relevance && (
+                                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${strToColor(cluster.decision_relevance)}`}>
+                                                Relevance: {cluster.decision_relevance}
+                                            </span>
+                                        )}
+                                        {cluster.consensus_status && (
+                                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${cluster.consensus_status === 'Consensus' ? 'bg-green-500/10 border-green-500 text-green-400' : cluster.consensus_status === 'Disputed' ? 'bg-red-500/10 border-red-500 text-red-400' : 'bg-yellow-500/10 border-yellow-500 text-yellow-400'}`}>
+                                                {cluster.consensus_status}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Risks & Opps */}
+                                    <div className="grid grid-cols-2 gap-4 w-full mb-4">
+                                        {cluster.risks && cluster.risks.length > 0 && (
+                                            <div>
+                                                <h5 className="text-[10px] uppercase font-bold text-red-400 mb-1">Risks</h5>
+                                                <ul className="list-disc pl-3 text-[10px] text-gray-400 space-y-1">
+                                                    {cluster.risks.slice(0, 2).map((r, i) => <li key={i}>{r}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+                                        {cluster.opportunities && cluster.opportunities.length > 0 && (
+                                            <div>
+                                                <h5 className="text-[10px] uppercase font-bold text-green-400 mb-1">Opportunities</h5>
+                                                <ul className="list-disc pl-3 text-[10px] text-gray-400 space-y-1">
+                                                    {cluster.opportunities.slice(0, 2).map((r, i) => <li key={i}>{r}</li>)}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="space-y-3">
@@ -143,4 +181,10 @@ export default function ClusterView({ sessionId, topic }: ClusterViewProps) {
             )}
         </div>
     );
+}
+
+function strToColor(str: string) {
+    if (str === 'High') return 'bg-red-500/10 border-red-500 text-red-400';
+    if (str === 'Medium') return 'bg-blue-500/10 border-blue-500 text-blue-400';
+    return 'bg-gray-500/10 border-gray-500 text-gray-400';
 }

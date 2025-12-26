@@ -48,7 +48,8 @@ clustering_service = ClusteringService(db_service, llm_service)
 async def start_brainstorm(
     topic: str = Form(...),
     file: UploadFile | None = File(None),
-    agent_ids: str | None = Form(None) # Comma separated IDs
+    agent_ids: str | None = Form(None), # Comma separated IDs
+    assurance_mode: str = Form("insight")
 ):
     session_id = str(uuid.uuid4())
     
@@ -159,7 +160,7 @@ async def get_agent_presets():
     return {"presets": AGENT_PRESETS}
 
 @app.get("/brainstorm/{session_id}/stream")
-async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic", agent_ids: str = None):
+async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic", agent_ids: str = None, assurance_mode: str = "insight"):
     # Retrieve topic from DB if not provided or if we want to double check
     # But prioritizing query param for robustness if DB is down
     db_topic = None
@@ -177,12 +178,12 @@ async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic", agent
     print(f"DEBUG: Stream {session_id} - Using Topic Length: {len(final_topic)}")
     
     return StreamingResponse(
-        orchestrator.run_brainstorming_session(final_topic, session_id, agent_ids.split(",") if agent_ids else None),
+        orchestrator.run_brainstorming_session(final_topic, session_id, agent_ids.split(",") if agent_ids else None, assurance_mode),
         media_type="text/event-stream"
     )
     
     return StreamingResponse(
-        orchestrator.run_brainstorming_session(topic, session_id),
+        orchestrator.run_brainstorming_session(topic, session_id, None, assurance_mode),
         media_type="text/event-stream"
     )
 
@@ -190,6 +191,20 @@ async def stream_brainstorm(session_id: str, topic: str = "Unknown Topic", agent
 async def cluster_ideas(session_id: str):
     clusters = await clustering_service.cluster_responses(session_id)
     return {"clusters": clusters}
+
+@app.get("/brainstorm/{session_id}/quality")
+async def get_quality_scores(session_id: str):
+    if db_service.get_client():
+        try:
+             # Fetch latest score
+             res = db_service.get_client().table("quality_scores").select("*").eq("session_id", session_id).order("created_at", desc=True).limit(1).execute()
+             if res.data:
+                 return {"latest": res.data[0]}
+             return {"latest": None}
+        except Exception as e:
+            print(f"Error fetching quality scores: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(status_code=503, detail="Database not available")
 
 @app.get("/")
 async def root():
