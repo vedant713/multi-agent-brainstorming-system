@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { orchestrator } from "@/lib/orchestrator";
+import { sessionStore } from "../../route";
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +10,20 @@ export async function GET(
   const searchParams = request.nextUrl.searchParams;
   const topic = searchParams.get("topic") || "Unknown Topic";
   const agentIdsParam = searchParams.get("agent_ids");
-  const agentIds = agentIdsParam ? agentIdsParam.split(",") : undefined;
+
+  let agentIds: string[] | undefined;
+  if (agentIdsParam) {
+    agentIds = agentIdsParam.split(",");
+  } else {
+    const config = sessionStore.get(sessionId);
+    if (config) {
+      agentIds = config.agentIds;
+    }
+  }
+
+  if (agentIds) {
+    orchestrator.setAgents(agentIds);
+  }
 
   const encoder = new TextEncoder();
 
