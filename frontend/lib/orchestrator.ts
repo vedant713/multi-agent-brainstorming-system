@@ -56,7 +56,7 @@ export class Orchestrator {
       context += `\n\n${record.agentName}: ${record.content}`;
     }
 
-    const totalResponses = history.length;
+    let totalResponses = history.length;
 
     while (true) {
       if (this.agents.length === 0) {
@@ -109,6 +109,8 @@ export class Orchestrator {
       this.messages.set(sessionId, sessionMessages);
 
       context += `\n\n${agent.name}: ${responseContent}`;
+
+      totalResponses += 1;
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
