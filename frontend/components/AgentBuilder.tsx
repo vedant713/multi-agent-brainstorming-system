@@ -18,7 +18,7 @@ export default function AgentBuilder({ onClose, onCreated }: AgentBuilderProps) 
 
     const fetchPresets = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/agents/presets`);
+            const res = await fetch(`/api/agents/presets`);
             const data = await res.json();
             setPresets(data.presets || []);
         } catch (e) {
@@ -39,7 +39,7 @@ export default function AgentBuilder({ onClose, onCreated }: AgentBuilderProps) 
         setError("");
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/agents`, {
+            const res = await fetch(`/api/agents`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

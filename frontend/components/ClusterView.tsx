@@ -23,7 +23,7 @@ export default function ClusterView({ sessionId, topic }: ClusterViewProps) {
     const handleCluster = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm/${sessionId}/cluster`, {
+            const res = await fetch(`/api/brainstorm/${sessionId}/cluster`, {
                 method: "POST",
             });
             const data = await res.json();

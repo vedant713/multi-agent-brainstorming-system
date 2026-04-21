@@ -28,10 +28,9 @@ export default function ChatInterface({ sessionId, topic, agentIds }: ChatInterf
         if (!sessionId || isPaused) return;
 
         console.log("Connecting to EventSource...");
-        console.log("Connecting to EventSource...");
         const encodedTopic = encodeURIComponent(topic);
         const agentIdsParam = agentIds && agentIds.length > 0 ? `&agent_ids=${agentIds.join(',')}` : '';
-        const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm/${sessionId}/stream?topic=${encodedTopic}${agentIdsParam}`);
+        const eventSource = new EventSource(`/api/brainstorm/${sessionId}/stream?topic=${encodedTopic}${agentIdsParam}`);
 
         eventSource.addEventListener("agent_start", (event) => {
             try {

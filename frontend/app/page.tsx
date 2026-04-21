@@ -34,7 +34,7 @@ export default function Home() {
 
   const fetchAgents = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/agents`);
+      const res = await fetch(`/api/agents`);
       if (res.ok) {
         const data = await res.json();
         setAvailableAgents(data.agents || []);
@@ -49,7 +49,7 @@ export default function Home() {
     if (!confirm("Are you sure you want to delete this agent?")) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/agents/${id}`, {
+      const res = await fetch(`/api/agents/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -84,9 +84,9 @@ export default function Home() {
         formData.append("agent_ids", selectedAgentIds.join(","));
       }
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/brainstorm`, {
+      const res = await fetch(`/api/brainstorm`, {
         method: "POST",
-        body: formData, // No Content-Type header needed for FormData
+        body: formData,
       });
       const data = await res.json();
       setSessionId(data.session_id);
