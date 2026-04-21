@@ -4,10 +4,17 @@ import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+interface Agent {
+    id: string;
+    name: string;
+    role: string;
+    prompt?: string;
+}
+
 interface ChatInterfaceProps {
     sessionId: string;
     topic: string;
-    agentIds?: string[];
+    agents?: Agent[];
 }
 
 interface Message {
@@ -15,7 +22,7 @@ interface Message {
     content: string;
 }
 
-export default function ChatInterface({ sessionId, topic, agentIds }: ChatInterfaceProps) {
+export default function ChatInterface({ sessionId, topic, agents }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [currentAgent, setCurrentAgent] = useState<string | null>(null);
     const [currentContent, setCurrentContent] = useState("");
@@ -29,8 +36,8 @@ export default function ChatInterface({ sessionId, topic, agentIds }: ChatInterf
 
         console.log("Connecting to EventSource...");
         const encodedTopic = encodeURIComponent(topic);
-        const agentIdsParam = agentIds && agentIds.length > 0 ? `&agent_ids=${agentIds.join(',')}` : '';
-        const eventSource = new EventSource(`/api/brainstorm/${sessionId}/stream?topic=${encodedTopic}${agentIdsParam}`);
+        const agentsParam = agents && agents.length > 0 ? `&agents=${encodeURIComponent(JSON.stringify(agents))}` : '';
+        const eventSource = new EventSource(`/api/brainstorm/${sessionId}/stream?topic=${encodedTopic}${agentsParam}`);
 
         eventSource.addEventListener("agent_start", (event) => {
             try {

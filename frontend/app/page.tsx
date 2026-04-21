@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ChatInterface from "@/components/ChatInterface";
 import ClusterView from "@/components/ClusterView";
 import AgentBuilder from "@/components/AgentBuilder";
@@ -28,6 +28,14 @@ export default function Home() {
   const [showAgentBuilder, setShowAgentBuilder] = useState(false);
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(DEFAULT_AGENTS.map(a => a.id));
+
+  const selectedAgentsConfig = useMemo(() => {
+    return selectedAgentIds.map(id => {
+      const defaultAgent = DEFAULT_AGENTS.find(a => a.id === id);
+      if (defaultAgent) return defaultAgent;
+      return availableAgents.find(a => a.id === id);
+    }).filter(Boolean) as Agent[];
+  }, [selectedAgentIds, availableAgents]);
 
   useEffect(() => {
     fetchAgents();
@@ -76,12 +84,6 @@ export default function Home() {
     if (!topic) return;
     setLoading(true);
     try {
-      const selectedAgentsConfig = selectedAgentIds.map(id => {
-        const defaultAgent = DEFAULT_AGENTS.find(a => a.id === id);
-        if (defaultAgent) return defaultAgent;
-        return availableAgents.find(a => a.id === id);
-      }).filter(Boolean);
-
       const res = await fetch(`/api/brainstorm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -297,7 +299,7 @@ export default function Home() {
             {/* Tab Content */}
             <div className="flex-1 min-h-0 relative">
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'discussion' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 -translate-x-10 z-0 pointer-events-none'}`}>
-                <ChatInterface sessionId={sessionId} topic={topic} agentIds={selectedAgentIds} />
+                <ChatInterface sessionId={sessionId} topic={topic} agents={selectedAgentsConfig} />
               </div>
               <div className={`absolute inset-0 transition-all duration-500 transform ${activeTab === 'analysis' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
                 <ClusterView sessionId={sessionId} topic={topic} />
