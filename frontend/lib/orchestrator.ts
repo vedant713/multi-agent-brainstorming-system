@@ -1,11 +1,18 @@
-import { generateStream, generateResponse } from "./openrouter";
-import { AgentInstance, DEFAULT_AGENTS, createAgentInstance } from "./agents";
+import { generateStream } from "./openrouter";
+import { AgentInstance, Agent, createAgentInstance } from "./agents";
 
 export interface SessionMessage {
   id: string;
   agentName: string;
   content: string;
 }
+
+export const DEFAULT_AGENTS: Agent[] = [
+  { id: "optimist", name: "Optimist", role: "Optimist", prompt: "You are an Optimist. You focus on the positive aspects, potential benefits, and exciting possibilities of any idea. Encourage creativity and expansion." },
+  { id: "skeptic", name: "Skeptic", role: "Skeptic", prompt: "You are a Skeptic. Challenge every assumption, find holes in arguments, and propose counter-arguments. Be relentless but constructive." },
+  { id: "analyst", name: "Analyst", role: "Analyst", prompt: "You are an Analyst. Analyze ideas critically, examine data, identify patterns, and provide logical assessments. Focus on facts and evidence." },
+  { id: "evaluator", name: "Evaluator", role: "Evaluator", prompt: "You are an Evaluator. Judge ideas objectively based on criteria like feasibility, impact, cost, and scalability. Provide balanced assessments." },
+];
 
 export class Orchestrator {
   private messages: Map<string, SessionMessage[]> = new Map();
@@ -26,9 +33,17 @@ export class Orchestrator {
     this.agents = selectedAgents.length > 0 ? selectedAgents : DEFAULT_AGENTS.map(createAgentInstance);
   }
 
-  async *runSession(sessionId: string, topic: string, agentIds?: string[]): AsyncGenerator<string> {
-    if (agentIds) {
-      this.setAgents(agentIds);
+  setAgentConfigs(agents: Agent[]) {
+    if (!agents || agents.length === 0) {
+      this.agents = DEFAULT_AGENTS.map(createAgentInstance);
+    } else {
+      this.agents = agents.map(createAgentInstance);
+    }
+  }
+
+  async *runSession(sessionId: string, topic: string, agents?: Agent[]): AsyncGenerator<string> {
+    if (agents) {
+      this.setAgentConfigs(agents);
     }
 
     const history = this.getMessages(sessionId);

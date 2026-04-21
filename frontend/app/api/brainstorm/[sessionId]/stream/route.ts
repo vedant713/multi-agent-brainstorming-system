@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { orchestrator } from "@/lib/orchestrator";
-import { sessionStore } from "../../route";
+import { sessionStore, AgentConfig } from "../../route";
 
 export async function GET(
   request: NextRequest,
@@ -9,20 +9,12 @@ export async function GET(
   const { sessionId } = await params;
   const searchParams = request.nextUrl.searchParams;
   const topic = searchParams.get("topic") || "Unknown Topic";
-  const agentIdsParam = searchParams.get("agent_ids");
 
-  let agentIds: string[] | undefined;
-  if (agentIdsParam) {
-    agentIds = agentIdsParam.split(",");
-  } else {
-    const config = sessionStore.get(sessionId);
-    if (config) {
-      agentIds = config.agentIds;
-    }
-  }
+  const config = sessionStore.get(sessionId);
+  const agents: AgentConfig[] | undefined = config?.agents;
 
-  if (agentIds) {
-    orchestrator.setAgents(agentIds);
+  if (agents) {
+    orchestrator.setAgentConfigs(agents);
   }
 
   const encoder = new TextEncoder();
@@ -30,7 +22,7 @@ export async function GET(
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of orchestrator.runSession(sessionId, topic, agentIds)) {
+        for await (const chunk of orchestrator.runSession(sessionId, topic, agents)) {
           controller.enqueue(encoder.encode(chunk));
         }
       } catch (error) {

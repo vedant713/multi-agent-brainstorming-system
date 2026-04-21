@@ -9,13 +9,14 @@ interface Agent {
   id: string;
   name: string;
   role: string;
+  prompt?: string;
 }
 
 const DEFAULT_AGENTS = [
-  { id: 'optimist', name: 'Optimist', role: 'Optimist' },
-  { id: 'skeptic', name: 'Skeptic', role: 'Skeptic' },
-  { id: 'analyst', name: 'Analyst', role: 'Analyst' },
-  { id: 'evaluator', name: 'Evaluator', role: 'Evaluator' },
+  { id: 'optimist', name: 'Optimist', role: 'Optimist', prompt: 'You are an Optimist. You focus on the positive aspects, potential benefits, and exciting possibilities of any idea. Encourage creativity and expansion.' },
+  { id: 'skeptic', name: 'Skeptic', role: 'Skeptic', prompt: 'You are a Skeptic. Challenge every assumption, find holes in arguments, and propose counter-arguments. Be relentless but constructive.' },
+  { id: 'analyst', name: 'Analyst', role: 'Analyst', prompt: 'You are an Analyst. Analyze ideas critically, examine data, identify patterns, and provide logical assessments. Focus on facts and evidence.' },
+  { id: 'evaluator', name: 'Evaluator', role: 'Evaluator', prompt: 'You are an Evaluator. Judge ideas objectively based on criteria like feasibility, impact, cost, and scalability. Provide balanced assessments.' },
 ];
 
 export default function Home() {
@@ -75,18 +76,16 @@ export default function Home() {
     if (!topic) return;
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("topic", topic);
-      if (file) {
-        formData.append("file", file);
-      }
-      if (selectedAgentIds.length > 0) {
-        formData.append("agent_ids", selectedAgentIds.join(","));
-      }
+      const selectedAgentsConfig = selectedAgentIds.map(id => {
+        const defaultAgent = DEFAULT_AGENTS.find(a => a.id === id);
+        if (defaultAgent) return defaultAgent;
+        return availableAgents.find(a => a.id === id);
+      }).filter(Boolean);
 
       const res = await fetch(`/api/brainstorm`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, agents: selectedAgentsConfig }),
       });
       const data = await res.json();
       setSessionId(data.session_id);
